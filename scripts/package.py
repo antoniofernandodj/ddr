@@ -54,15 +54,11 @@ for name in ["control", "postinst", "prerm"]:
     text = deb_dir_elem.findtext(f"DEBIAN/{name}")
     if text is None:
         continue
-
     debian_dir = os.path.join(deb_dir, "DEBIAN")
     os.makedirs(debian_dir, exist_ok=True)
-
     file_path = os.path.join(debian_dir, name)
     with open(file_path, "w") as f:
         f.write(strip_lines(text) + "\n")
-
-    # Scripts precisam ser executáveis
     if name in ("postinst", "prerm"):
         os.chmod(file_path, 0o755)
 
