@@ -18,8 +18,10 @@ use crate::{
 
 pub fn handle_infra(
     ssh_config: &SSHConfig,
-    group_config: Value
+    group_config: Value,
+    dry_run: bool
 ) -> anyhow::Result<()> {
+    print!("{}", dry_run);
     let session = utils::get_session(ssh_config)?;
     let group_config = group_config
         .as_mapping()

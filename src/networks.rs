@@ -16,7 +16,8 @@ use crate::models::SSHConfig;
 
 pub fn handle_networks(
     ssh_config: &SSHConfig,
-    group_config: Value
+    group_config: Value,
+    dry_run: bool
 ) {
     let group_config = group_config.as_mapping().unwrap().to_owned();
 

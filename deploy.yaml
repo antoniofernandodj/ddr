@@ -14,10 +14,10 @@ services:
     env_file:
     - ./infra.secrets.env
     depends_on:
-    - sidecar
-    - overhead
-    - scheduler
-    - worker
+    - "itemizebi/sidecar:${flow_version}"
+    - "itemizebi/overhead:${flow_version}"
+    - "itemizebi/scheduler:${flow_version}"
+    - "itemizebi/worker:${flow_version}"
     environment:
     - FLOW_LOGGER_NAME=WEB
     - PYTHONUNBUFFERED=1
@@ -73,8 +73,8 @@ services:
 
   "itemizebi/scheduler:${flow_version}":
     depends_on:
-    - worker
-    - sidecar
+    - "itemizebi/worker:${flow_version}"
+    - "itemizebi/sidecar:${flow_version}"
     instances:
       scheduler:
         network_mode: host
@@ -88,7 +88,7 @@ services:
 
   "itemizebi/worker:${flow_version}":
     depends_on:
-    - sidecar
+    - "itemizebi/sidecar:${flow_version}"
     instances:
       worker:
         network_mode: host

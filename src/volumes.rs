@@ -8,8 +8,11 @@ use crate::{
 
 pub fn handle_volumes(
     ssh_config: &SSHConfig,
-    group_config: Value
+    group_config: Value,
+    dry_run: bool
 ) -> anyhow::Result<()> {
+
+    print!("{}", dry_run);
     let group_config = group_config.as_mapping().unwrap().to_owned();
     let session = get_session(ssh_config)?;
 

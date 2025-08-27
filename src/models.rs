@@ -60,6 +60,7 @@ pub struct InfraConfig {
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+
 }
 
 #[derive(Subcommand)]
@@ -67,6 +68,9 @@ pub enum Commands {
     Deploy {
         #[arg(value_enum)]
         target: DeployTarget,
+        /// Simula a execução sem aplicar mudanças
+        #[clap(long)]
+        dry_run: bool,
     },
 }
 

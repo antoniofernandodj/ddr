@@ -22,7 +22,8 @@ use crate::{
 
 pub fn handle_services(
     ssh_config: &SSHConfig,
-    group_config: Value
+    group_config: Value,
+    dry_run: bool,
 ) -> anyhow::Result<()> {
 
     let mut deployed_services: HashSet<String> = HashSet::new();
@@ -32,28 +33,19 @@ pub fn handle_services(
     while !services_to_deploy.is_empty() {
         let mut ready_for_this_wave: Vec<String> = Vec::new();
 
-       for (image_name, service_config) in services_to_deploy.iter() {
-
+        for (image_name, service_config) in services_to_deploy.iter() {
             let service: ServiceConfig = from_value(service_config.clone())?;
-
             let dependencies = service.depends_on.clone().unwrap_or_default();
-            
-            let all_deps_ready = if dependencies.is_empty() {
-                true
-            } else {
+            let all_deps_ready = if dependencies.is_empty() { true } else {
                 dependencies.iter().all(|dep| deployed_services.contains(dep))
             };
 
-            dbg!(&image_name);
-            dbg!(&all_deps_ready);
-            dbg!(&deployed_services);
             if all_deps_ready {
                 ready_for_this_wave
                 .push(image_name.as_str().unwrap().to_owned());
             }
         }
 
-        dbg!(&ready_for_this_wave);
         if ready_for_this_wave.is_empty() {
             return Err(
                 anyhow::anyhow!(
@@ -74,42 +66,49 @@ pub fn handle_services(
 
             println!("----------------- DEPLOY DE SERVICE: {image_name} -----------------");
             println!("Salvando imagem em tar file: {tar_file}");
-            docker_save(&image_name, &tar_file)?;
+            if !dry_run {
+                docker_save(&image_name, &tar_file)?;
+            }
             println!("Salvou a imagem em uma tar file");
 
             let service_config: ServiceConfig = from_value(service_config)?;
             
             let instances = service_config.instances.clone();
 
-            scp_send(
-                &tar_file,
-                &format!("/tmp/{}", tar_file),
-                ssh_config,
-            )?;
+            if !dry_run {
+                scp_send(
+                    &tar_file,
+                    &format!("/tmp/{}", tar_file),
+                    ssh_config,
+                )?;
+            }
 
             for (instance_name, instance_value) in instances.into_iter() {
                 let container_config: ContainerConfig = from_value(instance_value.clone())?;
                 let instance_name = instance_name.as_str().unwrap();
 
                 println!("---------- Deploy de instancia `{instance_name}` ----------");
-        
-                handle_instance(
-                    instance_name,
-                    container_config,
-                    &tar_file,
-                    ssh_config,
-                    &service_config,
-                    &image_name,
-                    &session
-                )?;
+                
+                if !dry_run {
+                    handle_instance(
+                        instance_name,
+                        container_config,
+                        &tar_file,
+                        ssh_config,
+                        &service_config,
+                        &image_name,
+                        &session,
+                    )?;
+                }
 
             }
-
-            remove_local_and_remote_file(
-                &session,
-                &tar_file
-            )?;
-
+            
+            if !dry_run {
+                remove_local_and_remote_file(
+                    &session,
+                    &tar_file
+                )?;
+            }
 
             // Adiciona o serviço à lista de deployados com sucesso
             deployed_services.insert(image_name.clone());
@@ -129,7 +128,7 @@ fn handle_instance(
     ssh_config: &SSHConfig,
     service_config: &ServiceConfig,
     image_name: &str,
-    session: &Session
+    session: &Session,
 ) -> anyhow::Result<()> {
 
     let cmd: String = resolve_instace_command(

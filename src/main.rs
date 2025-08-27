@@ -29,32 +29,32 @@ fn main() -> anyhow::Result<()> {
     let deploy_map = deploy_yaml.as_mapping().unwrap();
 
     match cli.command {
-        Commands::Deploy { target } => match target {
+        Commands::Deploy { target, dry_run } => match target {
             DeployTarget::Services => {
                 if let Some(group) = deploy_map.get(
                     &Value::String("services".to_string())
                 ) {
-                    handle_services(&ssh_config, group.clone())?;
+                    handle_services(&ssh_config, group.clone(), dry_run)?;
                 }
             }
             DeployTarget::Infra => {
                 if let Some(group) = deploy_map.get(
                     &Value::String("infra".to_string())
                 ) {
-                    handle_infra(&ssh_config, group.clone())?;
+                    handle_infra(&ssh_config, group.clone(), dry_run)?;
                 }
             }
             DeployTarget::Volumes => {
                 if let Some(group) = deploy_map.get(
                     &Value::String("volumes".to_string())
                 ) {
-                    handle_volumes(&ssh_config, group.clone())?;
+                    handle_volumes(&ssh_config, group.clone(), dry_run)?;
                 }
             }
             DeployTarget::Networks => {
                 if let Some(group) = deploy_map.get(
                     &Value::String("networks".to_string())) {
-                    handle_networks(&ssh_config, group.clone());
+                    handle_networks(&ssh_config, group.clone(), dry_run);
                 }
             }
         },
