@@ -19,7 +19,6 @@ pub struct ContainerConfig {
     pub restart: Option<String>,
     pub env_file: Option<Vec<String>>,
     pub volumes: Option<Vec<String>>,
-    pub depends_on: Option<Vec<String>>,
     
     pub environment: Option<Vec<String>>,
     pub command: Option<String>,

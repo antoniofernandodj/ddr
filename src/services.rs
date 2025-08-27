@@ -1,4 +1,4 @@
-use std::{thread, time::Duration};
+use std::{collections::HashSet, thread, time::Duration};
 
 use serde_yaml::{from_value, Value};
 use ssh2::Session;
@@ -25,53 +25,96 @@ pub fn handle_services(
     group_config: Value
 ) -> anyhow::Result<()> {
 
+    let mut deployed_services: HashSet<String> = HashSet::new();
+    let mut services_to_deploy = group_config.as_mapping().unwrap().to_owned();
+
     let session: Session = get_session(ssh_config)?;
-    let group_config: serde_yaml::Mapping = group_config
-        .as_mapping()
-        .unwrap()
-        .to_owned();
+    while !services_to_deploy.is_empty() {
+        let mut ready_for_this_wave: Vec<String> = Vec::new();
 
-    for (image_name, service_config) in group_config {
-        let image_name: String = from_value(image_name)?;
-        let tar_file: String = format!(
-            "{}.tar", image_name.replace("/", "_").replace(":", "_")
-        );
+       for (image_name, service_config) in services_to_deploy.iter() {
 
-        println!("Salvando imagem em tar file: {tar_file}");
-        docker_save(&image_name, &tar_file)?;
-        println!("Salvou a imagem em uma tar file");
+            let service: ServiceConfig = from_value(service_config.clone())?;
 
-        let service_config: ServiceConfig = from_value(service_config)?;
-        
-        let instances = service_config.instances.clone();
+            let dependencies = service.depends_on.clone().unwrap_or_default();
+            
+            let all_deps_ready = if dependencies.is_empty() {
+                true
+            } else {
+                dependencies.iter().all(|dep| deployed_services.contains(dep))
+            };
 
-        scp_send(
-            &tar_file,
-            &format!("/tmp/{}", tar_file),
-            ssh_config,
-        )?;
-
-        for (instance_name, instance_value) in instances.into_iter() {
-
-            let container_config: ContainerConfig = from_value(instance_value.clone())?;
-            let instance_name = instance_name.as_str().unwrap();
-    
-            handle_instance(
-                instance_name,
-                container_config,
-                &tar_file,
-                ssh_config,
-                &service_config,
-                &image_name,
-                &session
-            )?;
-
+            dbg!(&image_name);
+            dbg!(&all_deps_ready);
+            dbg!(&deployed_services);
+            if all_deps_ready {
+                ready_for_this_wave
+                .push(image_name.as_str().unwrap().to_owned());
+            }
         }
 
-        remove_local_and_remote_file(
-            &session,
-            &tar_file
-        )?;
+        dbg!(&ready_for_this_wave);
+        if ready_for_this_wave.is_empty() {
+            return Err(
+                anyhow::anyhow!(
+                    "Dependência cíclica ou impossível de satisfazer."
+                )
+            );
+        }
+
+        for image_name in ready_for_this_wave.iter() {
+            let service_config = services_to_deploy
+                .get(image_name)
+                .unwrap()
+                .clone();
+
+            let tar_file: String = format!(
+                "{}.tar", image_name.replace("/", "_").replace(":", "_")
+            );
+
+            println!("----------------- DEPLOY DE SERVICE: {image_name} -----------------");
+            println!("Salvando imagem em tar file: {tar_file}");
+            docker_save(&image_name, &tar_file)?;
+            println!("Salvou a imagem em uma tar file");
+
+            let service_config: ServiceConfig = from_value(service_config)?;
+            
+            let instances = service_config.instances.clone();
+
+            scp_send(
+                &tar_file,
+                &format!("/tmp/{}", tar_file),
+                ssh_config,
+            )?;
+
+            for (instance_name, instance_value) in instances.into_iter() {
+                let container_config: ContainerConfig = from_value(instance_value.clone())?;
+                let instance_name = instance_name.as_str().unwrap();
+
+                println!("---------- Deploy de instancia `{instance_name}` ----------");
+        
+                handle_instance(
+                    instance_name,
+                    container_config,
+                    &tar_file,
+                    ssh_config,
+                    &service_config,
+                    &image_name,
+                    &session
+                )?;
+
+            }
+
+            remove_local_and_remote_file(
+                &session,
+                &tar_file
+            )?;
+
+
+            // Adiciona o serviço à lista de deployados com sucesso
+            deployed_services.insert(image_name.clone());
+            services_to_deploy.remove(image_name);
+        }
 
     }
 
@@ -248,9 +291,6 @@ fn resolve_instance_config_values(
             }
         }
     }
-
-    container_config.depends_on = container_config.depends_on
-        .or_else(|| service_config.depends_on.clone());
 
     container_config.environment = container_config.environment
         .or_else(|| service_config.environment.clone());

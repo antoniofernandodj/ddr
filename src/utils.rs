@@ -2,12 +2,14 @@
 use std::fs;
 use std::io::Read;
 
-use serde_yaml::Value;
 use ssh2::Session;
 use std::net::TcpStream;
 use std::path::Path;
 use dotenvy::from_filename;
 use std::env;
+use regex::Regex;
+use serde_yaml::{from_str, Value};
+use std::collections::HashMap;
 
 use crate::models::SSHConfig;
 
@@ -157,8 +159,60 @@ pub fn get_ssh_config() -> anyhow::Result<SSHConfig> {
 }
 
 
-pub fn read_deployment_file(path: &str) -> anyhow::Result<Value> {
-    let content: String = fs::read_to_string(path)?;
-    let config: Value = serde_yaml::from_str(&content)?;
-    Ok(config)
+pub fn parse_variables(yaml_content: &str) -> anyhow::Result<HashMap<String, String>> {
+    let raw_yaml: Value = from_str(yaml_content)?;
+    
+    // Se não tiver `define`, retorna HashMap vazio
+    let define_values = match raw_yaml
+        .get("define")
+        .and_then(Value::as_mapping) {
+            Some(values) => values,
+            None => return Ok(HashMap::new()),
+    };
+    
+    let mut variables = HashMap::new();
+    for (key, value) in define_values {
+        if let (Some(k), Some(v)) = (key.as_str(), value.as_str()) {
+            variables.insert(k.to_string(), v.to_string());
+        }
+    }
+    
+    Ok(variables)
+}
+
+
+fn replace_variables(yaml_content: &str, variables: &HashMap<String, String>) -> anyhow::Result<String> {
+    let re = Regex::new(r"\$\{([^}]+)\}").unwrap();
+    let mut replaced_content = yaml_content.to_string();
+
+    for captures in re.captures_iter(yaml_content) {
+        let full_match = captures.get(0).unwrap().as_str();
+        let var_name = captures.get(1).unwrap().as_str();
+
+        if let Some(value) = variables.get(var_name) {
+            replaced_content = replaced_content.replace(full_match, value);
+        } else {
+            return Err(anyhow::anyhow!("Variável não encontrada: {}", var_name));
+        }
+    }
+    
+    Ok(replaced_content)
+}
+
+
+pub fn process_deployment_file(file_path: &str) -> anyhow::Result<Value> {
+    let original_content = fs::read_to_string(file_path)?;
+
+    let variables: HashMap<String, String> = parse_variables(
+        &original_content
+    )?;
+
+    let processed_content = replace_variables(
+        &original_content,
+        &variables
+    )?;
+
+    let full_config: Value = from_str(&processed_content)?;
+    
+    Ok(full_config)
 }

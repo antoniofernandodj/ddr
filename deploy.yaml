@@ -1,16 +1,23 @@
+define:
+  flow_version: "2.13.2"
+  mysql_version: "8.0.43"
+  redis_version: "6.2-alpine"
+  mongo_version: "4.4"
+  loki_version: "3.4.2"
+  grafana_version: "11.5.2"
+  rabbitmq_version: "3-management"
+
 services:
-  "itemizebi/api:2.13.2":
+  "itemizebi/api:${flow_version}":
     network_mode: host
     restart: "on-failure"
     env_file:
     - ./infra.secrets.env
     depends_on:
     - sidecar
-    - broker
-    - cache
-    - mongodb
+    - overhead
+    - scheduler
     - worker
-    - loki
     environment:
     - FLOW_LOGGER_NAME=WEB
     - PYTHONUNBUFFERED=1
@@ -47,7 +54,7 @@ services:
         check:
           port: 8004
 
-  "itemizebi/sidecar:2.13.2":
+  "itemizebi/sidecar:${flow_version}":
     instances:
       sidecar:
         network_mode: host
@@ -62,15 +69,12 @@ services:
         - PYTHONUNBUFFERED=1
         - PYTHONBREAKPOINT=0
         - TERM=xterm-256color
-        depends_on:
-        - broker
-        - cache
-        - mongodb
-        - worker
-        - loki
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8020 --log-level info --timeout-keep-alive 3600 app_sidecar:app"
 
-  "itemizebi/scheduler:2.13.2":
+  "itemizebi/scheduler:${flow_version}":
+    depends_on:
+    - worker
+    - sidecar
     instances:
       scheduler:
         network_mode: host
@@ -81,27 +85,21 @@ services:
         - ./infra.secrets.env
         environment:
         - FLOW_LOGGER_NAME=SCHEDULER
-        depends_on:
-        - loki
-        - mongodb
-        - broker
-        - worker
 
-  "itemizebi/worker:2.13.2":
+  "itemizebi/worker:${flow_version}":
+    depends_on:
+    - sidecar
     instances:
       worker:
         network_mode: host
         restart: "always"
         env_file:
         - ./infra.secrets.env
-        depends_on:
-        - broker
-        - loki
         environment:
         - FLOW_LOGGER_NAME=ORCAMENTO_WORKER
         command: python app_worker.py
 
-  "itemizebi/overhead:2.13.2":
+  "itemizebi/overhead:${flow_version}":
     instances:
       overhead:
         network_mode: host
@@ -109,7 +107,7 @@ services:
         command: bash -c "uvicorn --host 0.0.0.0 --loop uvloop --port 5000 --log-level info --timeout-keep-alive 3600 app_overhead:app"
 
 infra:
-  "mysql:8.0.43":
+  "mysql:${mysql_version}":
     instances:
       mysql:
         restart: unless-stopped
@@ -127,7 +125,7 @@ infra:
           timeout: 5s
           retries: 5
 
-  "redis:6.2-alpine":
+  "redis:${redis_version}":
     instances:
       cache:
         network_mode: host
@@ -138,7 +136,7 @@ infra:
         environment:
         - REDIS_MAXMEMORY=256m
 
-  "rabbitmq:3-management":
+  "rabbitmq:${rabbitmq_version}":
     instances:
       broker: # ports 15672, 5672, 25672
         network_mode: host
@@ -148,7 +146,7 @@ infra:
         - ./infra.secrets.env
         restart: always
 
-  "mongo:4.4":
+  "mongo:${mongo_version}":
     instances:
       mongodb:
         network_mode: host
@@ -169,7 +167,7 @@ infra:
         - ./conf/prometheus.yml:/etc/prometheus/prometheus.yml
         - prometheus-data:/prometheus
 
-  "grafana/loki:3.4.2":
+  "grafana/loki:${loki_version}":
     instances:
       loki:
         restart: unless-stopped
@@ -182,7 +180,7 @@ infra:
         - LOKI_CONFIG_FILE=/etc/loki/loki.yaml
         command: -config.file=/etc/loki/loki.yaml
 
-  "grafana/grafana:11.5.2":
+  "grafana/grafana:${grafana_version}":
     instances:
       ports:
       - "3000:3000"

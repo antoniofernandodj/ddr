@@ -12,7 +12,7 @@ use clap::Parser;
 
 use crate::models::{Cli, Commands, DeployTarget};
 use crate::services::handle_services;
-use crate::utils::read_deployment_file;
+use crate::utils::{process_deployment_file};
 use crate::infra::handle_infra;
 use crate::volumes::handle_volumes;
 use crate::networks::handle_networks;
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     let ssh_config = utils::get_ssh_config()?;
 
     // Lê o deploy.yaml
-    let deploy_yaml = read_deployment_file("deploy.yaml")?;
+    let deploy_yaml = process_deployment_file("deploy.yaml")?;
     let deploy_map = deploy_yaml.as_mapping().unwrap();
 
     match cli.command {

@@ -1,0 +1,39 @@
+<{DEB_DIR}>
+    <DEBIAN>
+        <control>
+            <![CDATA[
+                Package: {name}
+                Version: {version}
+                Section: utils
+                Priority: optional
+                Architecture: {arch}
+                Maintainer: Você <voce@email>
+                Description: Pacote Rust gerado via Python
+            ]]>
+        </control>
+        <postinst>
+            <![CDATA[
+                #!/bin/bash
+                set -e
+                echo "Configurando {name}..."
+                chmod +x /usr/local/bin/{name}
+            ]]>
+        </postinst>
+        <prerm>
+            <![CDATA[
+                #!/bin/bash
+                set -e
+                echo "Removendo {name}..."
+            ]]>
+        </prerm>
+    </DEBIAN>
+    <usr>
+        <local>
+            <bin id="binary" src="target/release/ddr"/>
+            <share>
+                <doc>{name}</doc>
+                <man>{name}.1</man>
+            </share>
+        </local>
+    </usr>
+</{DEB_DIR}>
