@@ -31,8 +31,7 @@ pub fn handle_infra(
         let tar_file = format!("{}.tar", image_name.replace("/", "_").replace(":", "_"));
         docker_save(&image_name, &tar_file)?;
 
-
-        let infra_config: InfraConfig = from_value(infra_value).unwrap();
+        let infra_config: InfraConfig = from_value(infra_value)?;
 
         for (instance_name, instance_value) in infra_config.instances {
             scp_send(
@@ -41,38 +40,45 @@ pub fn handle_infra(
                 ssh_config,
             )?;
 
-            let instance_name: String = from_value(instance_name.clone()).unwrap();
+            let instance_name: String = from_value(instance_name.clone())?;
             let mut cmd_str = format!("docker run -d --name {}", instance_name);
+
             // network_mode
             if let Some(ref net) = infra_config.network_mode {
                 cmd_str += &format!(" --network {}", net);
             }
+
             // restart
             if let Some(ref r) = infra_config.restart {
                 cmd_str += &format!(" --restart {}", r);
             }
+
             // env_file
             if let Some(ref env_files) = infra_config.env_file {
                 for f in env_files {
                     cmd_str += &format!(" --env-file {}", f);
                 }
             }
+
             // environment
             if let Some(ref envs) = infra_config.environment {
                 for e in envs {
                     cmd_str += &format!(" -e {}", e);
                 }
             }
+
             // mem_limit
             if let Some(ref mem) = infra_config.mem_limit {
                 cmd_str += &format!(" --memory {}", mem);
             }
+
             // volumes
             if let Some(ref vols) = infra_config.volumes {
                 for v in vols {
                     cmd_str += &format!(" -v {}", v);
                 }
             }
+
             // comando específico da instância
             if let Some(instance_map) = instance_value.as_mapping() {
                 if let Some(cmd) = instance_map.get(
@@ -121,4 +127,3 @@ pub fn handle_infra(
 
     Ok(())
 }
-

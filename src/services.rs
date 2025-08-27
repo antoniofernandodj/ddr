@@ -5,6 +5,7 @@ use ssh2::Session;
 use reqwest::blocking::Client;
 use crate::{
     models::{
+        CheckHealth,
         ContainerConfig,
         SSHConfig,
         ServiceConfig
@@ -13,10 +14,10 @@ use crate::{
         docker_load_and_run,
         docker_save,
         get_session,
+        remove_local_and_remote_file,
         scp_send
     }
 };
-
 
 
 pub fn handle_services(
@@ -32,15 +33,24 @@ pub fn handle_services(
 
     for (image_name, service_config) in group_config {
         let image_name: String = from_value(image_name)?;
-        let tar_file: String = format!("{}.tar", image_name.replace("/", "_").replace(":", "_"));
+        let tar_file: String = format!(
+            "{}.tar", image_name.replace("/", "_").replace(":", "_")
+        );
 
-        dbg!("Salvando imagem em tar file");
+        println!("Salvando imagem em tar file: {tar_file}");
         docker_save(&image_name, &tar_file)?;
-        dbg!("Salvou a imagem em uma tar file");
+        println!("Salvou a imagem em uma tar file");
 
         let service_config: ServiceConfig = from_value(service_config)?;
         
         let instances = service_config.instances.clone();
+
+        scp_send(
+            &tar_file,
+            &format!("/tmp/{}", tar_file),
+            ssh_config,
+        )?;
+
         for (instance_name, instance_value) in instances.into_iter() {
 
             let container_config: ContainerConfig = from_value(instance_value.clone())?;
@@ -57,6 +67,12 @@ pub fn handle_services(
             )?;
 
         }
+
+        remove_local_and_remote_file(
+            &session,
+            &tar_file
+        )?;
+
     }
 
     Ok(())
@@ -73,20 +89,14 @@ fn handle_instance(
     session: &Session
 ) -> anyhow::Result<()> {
 
-    let cmd = resolve_instace_command(
+    let cmd: String = resolve_instace_command(
         &instance_name,
         &container_config,
         service_config,
         image_name
     )?;
 
-    dbg!(&instance_name);
-
-    scp_send(
-        &tar_file,
-        &format!("/tmp/{}", tar_file),
-        ssh_config,
-    )?;
+    println!("Instance name: {instance_name}");
 
     docker_load_and_run(
         &session,
@@ -96,11 +106,15 @@ fn handle_instance(
         &ssh_config
     )?;
 
-    check_instance(
-        instance_name,
-        &container_config,
-        ssh_config
-    )?;
+    if let Some(check_health) = &container_config.check {
+        check_instance(
+            instance_name,
+            check_health,
+            ssh_config,
+            &session,
+            tar_file
+        )?;
+    }
 
     Ok(())
 
@@ -109,21 +123,25 @@ fn handle_instance(
 
 fn check_instance(
     instance_name: &str,
-    container_config: &ContainerConfig,
-    ssh_config: &SSHConfig
+    check_health: &CheckHealth,
+    ssh_config: &SSHConfig,
+    session: &Session,
+    remote_file: & str
 ) -> anyhow::Result<()> {
 
+    if
+    let Some(endpoint) = check_health.endpoint.clone() &&
+    let Some(port) = check_health.port {
 
-    if let Some(check_map) = &container_config.check {
-        let url = format!(
-            "{}:{}{}",
+        let url: String = format!(
+            "http://{}:{}{}",
             ssh_config.host,
-            check_map.port,
-            check_map.endpoint
+            port,
+            endpoint
         );
         
-        let client = Client::new();
-        let mut success = false;
+        let client: Client = Client::new();
+        let mut success: bool = false;
         for _ in 0..30 {
             if let Ok(resp) = client.get(&url).send() {
                 if resp.status().is_success() {
@@ -134,6 +152,7 @@ fn check_instance(
             thread::sleep(Duration::from_secs(1));
         }
         if !success {
+            remove_local_and_remote_file(session, remote_file)?;
             panic!(
                 "A instância {} não respondeu no endpoint {}",
                 instance_name,
@@ -148,8 +167,6 @@ fn check_instance(
     }
 
     Ok(())
-
-
 }
 
 
@@ -160,57 +177,96 @@ fn resolve_instace_command(
     image_name: &str,
 ) -> anyhow::Result<String> {
 
-    let network_mode: Option<String> = service_config.network_mode.clone();
-    let restart: Option<String> = service_config.restart.clone();
-    let env_file: Option<Vec<String>> = service_config.env_file.clone();
-    let volumes: Option<Vec<String>> = service_config.volumes.clone();
-    let mut environment: Option<Vec<String>> = service_config.environment.clone();
-    let _depends_on: Option<Vec<String>> = service_config.depends_on.clone();
-    let mut main_command: Option<String> = None;
+    let container_config: ContainerConfig = resolve_instance_config_values(
+        container_config,
+        service_config
+    )?;
 
-    if let Some(v) = container_config.environment.clone() { 
-        environment = Some(v);
-    }
-
-    if let Some(v) = container_config.command.clone() {
-        main_command = Some(v);
-    }
-
+    // Construir o comando principal
     let mut cmd = format!("docker run -d --name {}", instance_name);
 
-    if let Some(ref net) = network_mode {
+    if let Some(ref net) = container_config.network_mode {
         cmd += &format!(" --network {}", net);
     }
 
-    if let Some(ref r) = restart {
+    if let Some(ref r) = container_config.restart {
         cmd += &format!(" --restart {}", r);
     }
 
-    if let Some(ref env_files) = env_file {
+    if let Some(ref env_files) = container_config.env_file {
         for f in env_files {
             cmd += &format!(" --env-file {}", f);
         }
     }
 
-    if let Some(ref envs) = environment {
+    if let Some(ref envs) = container_config.environment {
         for e in envs {
             cmd += &format!(" -e {}", e);
         }
     }
 
-    if let Some(ref vols) = volumes {
+    if let Some(ref vols) = container_config.volumes {
         for v in vols {
             cmd += &format!(" -v {}", v);
         }
     }
 
     cmd += &format!(" {}", image_name);
-    if let Some(ref command) = main_command {
+    if let Some(ref command) = container_config.command {
         cmd += &format!(" {}", command);
     }
-
 
     Ok(cmd)
 
 }
 
+
+fn resolve_instance_config_values(
+    container_config: &ContainerConfig,
+    service_config: &ServiceConfig,
+) -> anyhow::Result<ContainerConfig> {
+
+    let mut container_config: ContainerConfig = container_config.clone();
+
+    if let Some(ref mut check_container) = container_config.check {
+        if let Some(ref check_service) = service_config.check {
+            if let Some(port) = check_service.port {
+                check_container.port = Some(port);
+            }
+        } else {
+            if let Some(ref check_service) = service_config.check {
+                if
+                let Some(port) = check_service.port &&
+                let Some(ref endpoint) = check_service.endpoint {
+                    container_config.check = Some(
+                        CheckHealth {
+                            port: Some(port),
+                            endpoint: Some(endpoint.clone())
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    container_config.depends_on = container_config.depends_on
+        .or_else(|| service_config.depends_on.clone());
+
+    container_config.environment = container_config.environment
+        .or_else(|| service_config.environment.clone());
+
+    container_config.network_mode = container_config.network_mode
+        .or_else(|| service_config.network_mode.clone());
+
+    container_config.restart = container_config.restart
+        .or_else(|| service_config.restart.clone());
+
+    container_config.env_file = container_config.env_file
+        .or_else(|| service_config.env_file.clone());
+
+    container_config.volumes = container_config.volumes
+        .or_else(|| service_config.volumes.clone());
+
+    return Ok(container_config);
+
+}

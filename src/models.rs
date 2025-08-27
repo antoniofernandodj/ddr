@@ -4,15 +4,15 @@ use clap::{Parser, Subcommand};
 
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct CheckHealth {
-    pub port: i32,
-    pub endpoint: String
+    pub port: Option<i32>,
+    pub endpoint: Option<String>
 }
 
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ContainerConfig {
 
     pub network_mode: Option<String>,

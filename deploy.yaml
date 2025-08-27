@@ -16,6 +16,8 @@ services:
     - PYTHONUNBUFFERED=1
     - PYTHONBREAKPOINT=0
     - TERM=xterm-256color
+    check:
+      endpoint: /ok
     instances:
       api1:
         environment:
@@ -23,7 +25,6 @@ services:
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8001 --log-level info --timeout-keep-alive 3600 app_asgi:app"
         check:
           port: 8001
-          endpoint: /ok
 
       api2:
         environment:
@@ -31,7 +32,6 @@ services:
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8002 --log-level info --timeout-keep-alive 3600 app_asgi:app"
         check:
           port: 8002
-          endpoint: /ok
 
       api3:
         environment:
@@ -39,7 +39,6 @@ services:
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8003 --log-level info --timeout-keep-alive 3600 app_asgi:app"
         check:
           port: 8003
-          endpoint: /ok
 
       api4:
         environment:
@@ -47,7 +46,6 @@ services:
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8004 --log-level info --timeout-keep-alive 3600 app_asgi:app"
         check:
           port: 8004
-          endpoint: /ok
 
   "itemizebi/sidecar:2.13.2":
     instances:
@@ -70,8 +68,7 @@ services:
         - mongodb
         - worker
         - loki
-        command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8020 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_sidecar:app"
+        command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8020 --log-level info --timeout-keep-alive 3600 app_sidecar:app"
 
   "itemizebi/scheduler:2.13.2":
     instances:
@@ -109,8 +106,7 @@ services:
       overhead:
         network_mode: host
         restart: "on-failure"
-        command: bash -c " uvicorn \ --host 0.0.0.0 \ --loop uvloop \ --port 5000 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_overhead:app"
+        command: bash -c "uvicorn --host 0.0.0.0 --loop uvloop --port 5000 --log-level info --timeout-keep-alive 3600 app_overhead:app"
 
 infra:
   "mysql:8.0.43":

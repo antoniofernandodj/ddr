@@ -66,6 +66,17 @@ pub fn docker_load_and_run(
     run_remote(session, &format!("docker load -i {}", remote_file))?;
     run_remote(session, &format!("docker rm -f {} || true", container_name))?;
     run_remote(session, &format!("cd {} && {}", ssh_config.from_dir, cmd))?;
+
+    Ok(())
+}
+
+
+pub fn remove_local_and_remote_file(
+    session: &Session,
+    remote_file: &str
+) -> anyhow::Result<()> {
+
+    println!("Removendo arquivo local e remoto {remote_file}");
     run_remote(session, &format!("rm -f {}", remote_file))?;
     std::fs::remove_file(remote_file).ok();
 
