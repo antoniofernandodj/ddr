@@ -1,5 +1,5 @@
 services:
-  "itemizebi/api:2.13.1":
+  "itemizebi/api:2.13.2":
     network_mode: host
     restart: "on-failure"
     env_file:
@@ -20,28 +20,36 @@ services:
       api1:
         environment:
         - APP_PORT=8001
-        command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8001 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_asgi:app"
+        command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8001 --log-level info --timeout-keep-alive 3600 app_asgi:app"
+        check:
+          port: 8001
+          endpoint: /ok
 
       api2:
         environment:
         - APP_PORT=8002
-        command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8002 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_asgi:app"
+        command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8002 --log-level info --timeout-keep-alive 3600 app_asgi:app"
+        check:
+          port: 8002
+          endpoint: /ok
 
       api3:
         environment:
         - APP_PORT=8003
-        command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8003 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_asgi:app"
+        command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8003 --log-level info --timeout-keep-alive 3600 app_asgi:app"
+        check:
+          port: 8003
+          endpoint: /ok
 
       api4:
         environment:
         - APP_PORT=8004
-        command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8004 \ 
-          --log-level info \ --timeout-keep-alive 3600 \ app_asgi:app"
+        command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8004 --log-level info --timeout-keep-alive 3600 app_asgi:app"
+        check:
+          port: 8004
+          endpoint: /ok
 
-  "itemizebi/sidecar:2.13.1":
+  "itemizebi/sidecar:2.13.2":
     instances:
       sidecar:
         network_mode: host
@@ -65,7 +73,7 @@ services:
         command: bash -c " uvicorn --loop uvloop \ --host 0.0.0.0 \ --port 8020 \ 
           --log-level info \ --timeout-keep-alive 3600 \ app_sidecar:app"
 
-  "itemizebi/scheduler:2.13.1":
+  "itemizebi/scheduler:2.13.2":
     instances:
       scheduler:
         network_mode: host
@@ -82,7 +90,7 @@ services:
         - broker
         - worker
 
-  "itemizebi/worker:2.13.1":
+  "itemizebi/worker:2.13.2":
     instances:
       worker:
         network_mode: host
@@ -96,7 +104,7 @@ services:
         - FLOW_LOGGER_NAME=ORCAMENTO_WORKER
         command: python app_worker.py
 
-  "itemizebi/overhead:2.13.1":
+  "itemizebi/overhead:2.13.2":
     instances:
       overhead:
         network_mode: host
