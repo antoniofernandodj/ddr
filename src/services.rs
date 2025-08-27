@@ -1,4 +1,4 @@
-use std::{env, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use serde_yaml::{from_value, Value};
 use ssh2::Session;
@@ -68,7 +68,7 @@ fn handle_instance(
     session: &Session
 ) -> anyhow::Result<()> {
 
-    let (cmd, _) = resolve_instace_params(
+    let cmd = resolve_instace_command(
         &instance_name,
         &instance_value,
         service_config,
@@ -149,12 +149,12 @@ fn check_instance(instance_name: &str, instance_value: Value, ssh_config: &SSHCo
 
 
 
-fn resolve_instace_params(
+fn resolve_instace_command(
     instance_name: &Value,
     instance_value: &Value,
     service_config: &ServiceConfig,
     image_name: &str,
-) -> anyhow::Result<(String, ContainerConfig)> {
+) -> anyhow::Result<String> {
 
     let network_mode: Option<String> = service_config.network_mode.clone();
     let restart: Option<String> = service_config.restart.clone();
@@ -208,18 +208,8 @@ fn resolve_instace_params(
         cmd += &format!(" {}", command);
     }
 
-    let container_config = ContainerConfig {
-        network_mode: network_mode,
-        restart: restart,
-        env_file: env_file,
-        volumes: volumes,
-        depends_on: _depends_on,
-        environment,
-        check: None,
-        command: main_command
-    };
 
-    Ok((cmd, container_config))
+    Ok(cmd)
 
 }
 
