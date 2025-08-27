@@ -6,8 +6,8 @@ use clap::{Parser, Subcommand};
 
 #[derive(Debug, Deserialize)]
 pub struct CheckHealth {
-    port: i32,
-    endpoint: String
+    pub port: i32,
+    pub endpoint: String
 }
 
 

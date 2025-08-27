@@ -39,11 +39,16 @@ pub fn handle_services(
         dbg!("Salvou a imagem em uma tar file");
 
         let service_config: ServiceConfig = from_value(service_config)?;
+        
         let instances = service_config.instances.clone();
         for (instance_name, instance_value) in instances.into_iter() {
+
+            let container_config: ContainerConfig = from_value(instance_value.clone())?;
+            let instance_name = instance_name.as_str().unwrap();
+    
             handle_instance(
                 instance_name,
-                instance_value,
+                container_config,
                 &tar_file,
                 ssh_config,
                 &service_config,
@@ -59,8 +64,8 @@ pub fn handle_services(
 
 
 fn handle_instance(
-    instance_name: Value,
-    instance_value: Value,
+    instance_name: &str,
+    container_config: ContainerConfig,
     tar_file: &str,
     ssh_config: &SSHConfig,
     service_config: &ServiceConfig,
@@ -70,7 +75,7 @@ fn handle_instance(
 
     let cmd = resolve_instace_command(
         &instance_name,
-        &instance_value,
+        &container_config,
         service_config,
         image_name
     )?;
@@ -87,71 +92,70 @@ fn handle_instance(
         &session,
         &format!("/tmp/{}", tar_file),
         cmd,
-        &instance_name.as_str().unwrap(),
+        instance_name,
         &ssh_config
     )?;
 
     check_instance(
-        &instance_name.as_str().unwrap(),
-        instance_value,
+        instance_name,
+        &container_config,
         ssh_config
-    );
+    )?;
 
     Ok(())
 
 }
 
 
-fn check_instance(instance_name: &str, instance_value: Value, ssh_config: &SSHConfig) {
-    // ✅ Check se a instância subiu
-    if let Some(instance_map) = instance_value.as_mapping() {
-        if let Some(check) = instance_map.get(&Value::String("check".to_string())) {
-            if let Some(check_map) = check.as_mapping() {
-                let port = check_map.get(&Value::String("port".to_string()))
-                    .and_then(|v| v.as_u64())
-                    .expect("Check port não definido");
-                let endpoint = check_map.get(&Value::String("endpoint".to_string()))
-                    .and_then(|v| v.as_str())
-                    .expect("Check endpoint não definido");
+fn check_instance(
+    instance_name: &str,
+    container_config: &ContainerConfig,
+    ssh_config: &SSHConfig
+) -> anyhow::Result<()> {
 
-                let url = format!("{}:{}{}", ssh_config.host, port, endpoint);
-                let client = Client::new();
 
-                // Espera até 30s pelo container
-                let mut success = false;
-                for _ in 0..30 {
-                    if let Ok(resp) = client.get(&url).send() {
-                        if resp.status().is_success() {
-                            success = true;
-                            break;
-                        }
-                    }
-                    thread::sleep(Duration::from_secs(1));
+    if let Some(check_map) = &container_config.check {
+        let url = format!(
+            "{}:{}{}",
+            ssh_config.host,
+            check_map.port,
+            check_map.endpoint
+        );
+        
+        let client = Client::new();
+        let mut success = false;
+        for _ in 0..30 {
+            if let Ok(resp) = client.get(&url).send() {
+                if resp.status().is_success() {
+                    success = true;
+                    break;
                 }
-
-                if !success {
-                    panic!(
-                        "A instância {} não respondeu no endpoint {}",
-                        instance_name,
-                        url
-                    );
-                }
-
-                println!(
-                    "Instância {} ok em {}",
-                    instance_name,
-                    url
-                );
             }
+            thread::sleep(Duration::from_secs(1));
         }
+        if !success {
+            panic!(
+                "A instância {} não respondeu no endpoint {}",
+                instance_name,
+                url
+            );
+        }
+        println!(
+            "Instância {} ok em {}",
+            instance_name,
+            url
+        );
     }
+
+    Ok(())
+
+
 }
 
 
-
 fn resolve_instace_command(
-    instance_name: &Value,
-    instance_value: &Value,
+    instance_name: &str,
+    container_config: &ContainerConfig,
     service_config: &ServiceConfig,
     image_name: &str,
 ) -> anyhow::Result<String> {
@@ -164,14 +168,11 @@ fn resolve_instace_command(
     let _depends_on: Option<Vec<String>> = service_config.depends_on.clone();
     let mut main_command: Option<String> = None;
 
-    let instance_name: String = from_value(instance_name.clone())?;
-    let config: ContainerConfig = from_value(instance_value.clone())?;
-
-    if let Some(v) = config.environment.clone() { 
+    if let Some(v) = container_config.environment.clone() { 
         environment = Some(v);
     }
 
-    if let Some(v) = config.command.clone() {
+    if let Some(v) = container_config.command.clone() {
         main_command = Some(v);
     }
 
