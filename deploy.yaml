@@ -27,6 +27,11 @@ services:
       endpoint: /ok
     instances:
       api1:
+        healthcheck:
+          cmd: "curl -f http://localhost:8001/ok || exit 1"
+          interval: 10s
+          timeout: 5s
+          retries: 5
         environment:
         - APP_PORT=8001
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8001 --log-level info --timeout-keep-alive 3600 app_asgi:app"
@@ -34,6 +39,11 @@ services:
           port: 8001
 
       api2:
+        healthcheck:
+          cmd: "curl -f http://localhost:8002/ok || exit 1"
+          interval: 10s
+          timeout: 5s
+          retries: 5
         environment:
         - APP_PORT=8002
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8002 --log-level info --timeout-keep-alive 3600 app_asgi:app"
@@ -41,6 +51,11 @@ services:
           port: 8002
 
       api3:
+        healthcheck:
+          cmd: "curl -f http://localhost:8003/ok || exit 1"
+          interval: 10s
+          timeout: 5s
+          retries: 5
         environment:
         - APP_PORT=8003
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8003 --log-level info --timeout-keep-alive 3600 app_asgi:app"
@@ -48,6 +63,11 @@ services:
           port: 8003
 
       api4:
+        healthcheck:
+          cmd: "curl -f http://localhost:8004/ok || exit 1"
+          interval: 10s
+          timeout: 5s
+          retries: 5
         environment:
         - APP_PORT=8004
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8004 --log-level info --timeout-keep-alive 3600 app_asgi:app"

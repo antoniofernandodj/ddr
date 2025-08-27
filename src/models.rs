@@ -1,13 +1,26 @@
 use serde::Deserialize;
-use serde_yaml::{Mapping, Value};
+use serde_yaml::{Mapping};
 use clap::{Parser, Subcommand};
 
 
 
+
+
 #[derive(Debug, Deserialize, Clone)]
-pub struct CheckHealth {
+pub struct RemoteHealthCheck {
     pub port: Option<i32>,
     pub endpoint: Option<String>
+}
+
+
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct HealthCheck {
+    pub test: Option<Vec<String>>,
+    pub cmd: Option<String>,
+    pub interval: String,
+    pub timeout: String,
+    pub retries: i32,
 }
 
 
@@ -22,7 +35,8 @@ pub struct ContainerConfig {
     
     pub environment: Option<Vec<String>>,
     pub command: Option<String>,
-    pub check: Option<CheckHealth>
+    pub remotecheck: Option<RemoteHealthCheck>,
+    pub healthcheck: Option<HealthCheck>,
 }
 
 
@@ -35,10 +49,12 @@ pub struct ServiceConfig {
     pub environment: Option<Vec<String>>,
     pub depends_on: Option<Vec<String>>,
     pub instances: Mapping,
-    pub check: Option<CheckHealth>
+    pub remotecheck: Option<RemoteHealthCheck>,
 }
 
 
+
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct InfraConfig {
     pub network_mode: Option<String>,
@@ -46,10 +62,10 @@ pub struct InfraConfig {
     pub env_file: Option<Vec<String>>,
     pub volumes: Option<Vec<String>>,
     pub environment: Option<Vec<String>>,
-    pub _depends_on: Option<Vec<String>>,
+    pub depends_on: Option<Vec<String>>,
     pub mem_limit: Option<String>,
-    pub _healthcheck: Option<Value>, // Pode ser mapeado melhor depois
-    pub _command: Option<String>,
+    pub healthcheck: Option<HealthCheck>,
+    pub command: Option<String>,
     pub instances: Mapping, // Algumas infra pode ter instâncias
 }
 

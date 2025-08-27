@@ -5,10 +5,7 @@ use ssh2::Session;
 use reqwest::blocking::Client;
 use crate::{
     models::{
-        CheckHealth,
-        ContainerConfig,
-        SSHConfig,
-        ServiceConfig
+        ContainerConfig, HealthCheck, RemoteHealthCheck, SSHConfig, ServiceConfig
     },
     utils::{
         docker_load_and_run,
@@ -110,7 +107,6 @@ pub fn handle_services(
                 )?;
             }
 
-            // Adiciona o serviço à lista de deployados com sucesso
             deployed_services.insert(image_name.clone());
             services_to_deploy.remove(image_name);
         }
@@ -148,7 +144,7 @@ fn handle_instance(
         &ssh_config
     )?;
 
-    if let Some(check_health) = &container_config.check {
+    if let Some(check_health) = &container_config.remotecheck {
         check_instance(
             instance_name,
             check_health,
@@ -165,7 +161,7 @@ fn handle_instance(
 
 fn check_instance(
     instance_name: &str,
-    check_health: &CheckHealth,
+    check_health: &RemoteHealthCheck,
     ssh_config: &SSHConfig,
     session: &Session,
     remote_file: & str
@@ -253,6 +249,22 @@ fn resolve_instace_command(
         }
     }
 
+    if let Some(ref hc) = container_config.healthcheck {
+
+        let cmd_string = build_health_cmd(hc);
+
+        if !cmd_string.is_empty() {
+            cmd = format!(
+                "{} --health-cmd='{}' --health-interval={} --health-timeout={} --health-retries={}",
+                cmd,
+                cmd_string,
+                hc.interval,
+                hc.timeout,
+                hc.retries
+            );
+        }
+    }
+
     cmd += &format!(" {}", image_name);
     if let Some(ref command) = container_config.command {
         cmd += &format!(" {}", command);
@@ -270,18 +282,18 @@ fn resolve_instance_config_values(
 
     let mut container_config: ContainerConfig = container_config.clone();
 
-    if let Some(ref mut check_container) = container_config.check {
-        if let Some(ref check_service) = service_config.check {
+    if let Some(ref mut check_container) = container_config.remotecheck {
+        if let Some(ref check_service) = service_config.remotecheck {
             if let Some(port) = check_service.port {
                 check_container.port = Some(port);
             }
         } else {
-            if let Some(ref check_service) = service_config.check {
+            if let Some(ref check_service) = service_config.remotecheck {
                 if
                 let Some(port) = check_service.port &&
                 let Some(ref endpoint) = check_service.endpoint {
-                    container_config.check = Some(
-                        CheckHealth {
+                    container_config.remotecheck = Some(
+                        RemoteHealthCheck {
                             port: Some(port),
                             endpoint: Some(endpoint.clone())
                         }
@@ -308,4 +320,18 @@ fn resolve_instance_config_values(
 
     return Ok(container_config);
 
+}
+
+
+fn build_health_cmd(hc: &HealthCheck) -> String {
+    if let Some(cmd) = &hc.cmd {
+        cmd.trim().to_string()
+    } else if let Some(test) = &hc.test {
+        test.iter()
+            .map(|token| shell_escape::escape(token.into()))
+            .collect::<Vec<_>>()
+            .join(" ")
+    } else {
+        String::new()
+    }
 }
