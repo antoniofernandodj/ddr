@@ -1,11 +1,15 @@
 use std::{collections::HashSet, thread, time::Duration};
 
-use serde_yaml::{from_value, Value};
+use serde_yaml::{from_value, Mapping, Value};
 use ssh2::Session;
 use reqwest::blocking::Client;
 use crate::{
     models::{
-        ContainerConfig, HealthCheck, RemoteHealthCheck, SSHConfig, ServiceConfig
+        ContainerConfig,
+        HealthCheck,
+        RemoteHealthCheck,
+        SSHConfig,
+        ServiceConfig
     },
     utils::{
         docker_load_and_run,
@@ -17,40 +21,32 @@ use crate::{
 };
 
 
-pub fn handle_services(
+pub fn handle_group(
     ssh_config: &SSHConfig,
-    group_config: Value,
+    group_name: &str,
+    deploy_map: &Mapping,
     dry_run: bool,
 ) -> anyhow::Result<()> {
 
+    let group_config: Value = deploy_map
+        .get(&Value::String(group_name.to_string()))
+        .cloned()
+        .expect("Group config não encontrado!");
+
     let mut deployed_services: HashSet<String> = HashSet::new();
-    let mut services_to_deploy = group_config.as_mapping().unwrap().to_owned();
+    let mut services_to_deploy = group_config
+        .as_mapping()
+        .expect("Group config não é um mapping")
+        .to_owned();
 
     let session: Session = get_session(ssh_config)?;
     while !services_to_deploy.is_empty() {
-        let mut ready_for_this_wave: Vec<String> = Vec::new();
 
-        for (image_name, service_config) in services_to_deploy.iter() {
-            let service: ServiceConfig = from_value(service_config.clone())?;
-            let dependencies = service.depends_on.clone().unwrap_or_default();
-            let all_deps_ready = if dependencies.is_empty() { true } else {
-                dependencies.iter().all(|dep| deployed_services.contains(dep))
-            };
-
-            if all_deps_ready {
-                ready_for_this_wave
-                .push(image_name.as_str().unwrap().to_owned());
-            }
-        }
-
-        if ready_for_this_wave.is_empty() {
-            return Err(
-                anyhow::anyhow!(
-                    "Dependência cíclica ou impossível de satisfazer."
-                )
-            );
-        }
-
+        let ready_for_this_wave = resolve_this_wave(
+            &services_to_deploy,
+            &deployed_services
+        )?;
+    
         for image_name in ready_for_this_wave.iter() {
             let service_config = services_to_deploy
                 .get(image_name)
@@ -66,7 +62,7 @@ pub fn handle_services(
             if !dry_run {
                 docker_save(&image_name, &tar_file)?;
             }
-            println!("Salvou a imagem em uma tar file");
+            println!("Salvou a imagem {tar_file} em tar file");
 
             let service_config: ServiceConfig = from_value(service_config)?;
             
@@ -114,6 +110,35 @@ pub fn handle_services(
     }
 
     Ok(())
+}
+
+
+fn resolve_this_wave(
+    services_to_deploy: &Mapping,
+    deployed_services: &HashSet<String>
+) -> anyhow::Result<Vec<String>> {
+
+    let mut ready_for_this_wave: Vec<String> = Vec::new();
+    for (image_name, service_config) in services_to_deploy.iter() {
+        let service: ServiceConfig = from_value(service_config.clone())?;
+        let dependencies = service.depends_on.clone().unwrap_or_default();
+        let all_deps_ready = if dependencies.is_empty() { true } else {
+            dependencies.iter().all(|dep| deployed_services.contains(dep))
+        };
+        if all_deps_ready {
+            ready_for_this_wave
+            .push(image_name.as_str().unwrap().to_owned());
+        }
+    }
+    if ready_for_this_wave.is_empty() {
+        return Err(
+            anyhow::anyhow!(
+                "Dependência cíclica ou impossível de satisfazer."
+            )
+        );
+    }
+
+    Ok(ready_for_this_wave)
 }
 
 
@@ -221,7 +246,7 @@ fn resolve_instace_command(
     )?;
 
     // Construir o comando principal
-    let mut cmd = format!("docker run -d --name {}", instance_name);
+    let mut cmd: String = format!("docker run -d --name {}", instance_name);
 
     if let Some(ref net) = container_config.network_mode {
         cmd += &format!(" --network {}", net);
@@ -250,9 +275,7 @@ fn resolve_instace_command(
     }
 
     if let Some(ref hc) = container_config.healthcheck {
-
-        let cmd_string = build_health_cmd(hc);
-
+        let cmd_string: String = build_health_cmd(hc);
         if !cmd_string.is_empty() {
             cmd = format!(
                 "{} --health-cmd='{}' --health-interval={} --health-timeout={} --health-retries={}",
@@ -324,14 +347,27 @@ fn resolve_instance_config_values(
 
 
 fn build_health_cmd(hc: &HealthCheck) -> String {
-    if let Some(cmd) = &hc.cmd {
-        cmd.trim().to_string()
-    } else if let Some(test) = &hc.test {
-        test.iter()
-            .map(|token| shell_escape::escape(token.into()))
-            .collect::<Vec<_>>()
-            .join(" ")
-    } else {
-        String::new()
+    if hc.test.is_empty() {
+        return String::new();
     }
+
+    let cmd_parts: &[String] = if hc.test[0] == "CMD" || hc.test[0] == "CMD-SHELL" {
+        &hc.test[1..]
+    } else {
+        &hc.test[..]
+    };
+
+    let cmd_string = cmd_parts
+        .iter()
+        .map(|s| {
+            if s.contains(' ') {
+                format!("\"{}\"", s)  // coloca aspas se tiver espaço
+            } else {
+                s.clone()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ");
+
+    cmd_string
 }

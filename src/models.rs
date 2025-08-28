@@ -16,8 +16,7 @@ pub struct RemoteHealthCheck {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct HealthCheck {
-    pub test: Option<Vec<String>>,
-    pub cmd: Option<String>,
+    pub test: Vec<String>,
     pub interval: String,
     pub timeout: String,
     pub retries: i32,
@@ -76,27 +75,20 @@ pub struct InfraConfig {
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
     Deploy {
         #[arg(value_enum)]
-        target: DeployTarget,
+        #[clap(long)]
+        group_name: String,
         /// Simula a execução sem aplicar mudanças
         #[clap(long)]
         dry_run: bool,
     },
 }
 
-#[derive(clap::ValueEnum, Clone)]
-pub enum DeployTarget {
-    Services,
-    Infra,
-    Volumes,
-    Networks,
-}
 
 pub struct SSHConfig {
     pub user: String,

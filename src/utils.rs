@@ -86,22 +86,16 @@ pub fn remove_local_and_remote_file(
 }
 
 
-pub fn docker_run(
-    session: &Session,
-    cmd: String,
-    ssh_config: &SSHConfig
-) -> anyhow::Result<()> {
-
-    let mut run_channel = session.channel_session()?;
-    let complete_cmd = format!("cd {} && {}", ssh_config.from_dir, cmd);
-    run_channel.exec(&complete_cmd)?;
-    run_channel.wait_close()?;
-
+pub fn docker_run(session: &Session, cmd: String) -> anyhow::Result<()> {
+    run_remote(session, &format!("{cmd}"))?;
     Ok(())
 }
 
 
 pub fn run_remote(session: &ssh2::Session, command: &str) -> anyhow::Result<()> {
+    println!("Executando comando remoto:");
+    dbg!(command);
+
     let mut channel = session.channel_session()?;
     channel.exec(command)?;
 

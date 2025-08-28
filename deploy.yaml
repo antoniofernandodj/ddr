@@ -28,7 +28,7 @@ services:
     instances:
       api1:
         healthcheck:
-          cmd: "curl -f http://localhost:8001/ok || exit 1"
+          test: ["CMD", "curl", "-f", "http://localhost:8001/ok"]
           interval: 10s
           timeout: 5s
           retries: 5
@@ -40,7 +40,7 @@ services:
 
       api2:
         healthcheck:
-          cmd: "curl -f http://localhost:8002/ok || exit 1"
+          test: ["CMD", "curl", "-f", "http://localhost:8002/ok"]
           interval: 10s
           timeout: 5s
           retries: 5
@@ -52,7 +52,7 @@ services:
 
       api3:
         healthcheck:
-          cmd: "curl -f http://localhost:8003/ok || exit 1"
+          test: ["CMD", "curl", "-f", "http://localhost:8003/ok"]
           interval: 10s
           timeout: 5s
           retries: 5
@@ -64,7 +64,7 @@ services:
 
       api4:
         healthcheck:
-          cmd: "curl -f http://localhost:8004/ok || exit 1"
+          test: ["CMD", "curl", "-f", "http://localhost:8004/ok"]
           interval: 10s
           timeout: 5s
           retries: 5
@@ -220,8 +220,6 @@ volumes:
   mongodb-data:
   mongodb-logs:
   prometheus-data:
-  zookeeper_data:
-  kafka_data:
 
 networks:
   default:

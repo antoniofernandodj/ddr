@@ -1,4 +1,4 @@
-use serde_yaml::{from_value, Value};
+use serde_yaml::{from_value, Mapping, Value};
 
 use crate::{
     models::SSHConfig,
@@ -8,22 +8,27 @@ use crate::{
 
 pub fn handle_volumes(
     ssh_config: &SSHConfig,
-    group_config: Value,
+    deploy_map: &Mapping,
     dry_run: bool
 ) -> anyhow::Result<()> {
 
-    print!("{}", dry_run);
-    let group_config = group_config.as_mapping().unwrap().to_owned();
+    // Pega o grupo "volumes" como Value e garante que é Mapping
+    let group_config: Mapping = deploy_map
+        .get(&Value::String("volumes".to_string()))
+        .cloned()
+        .expect("Group config 'volumes' não encontrado!")
+        .as_mapping()
+        .expect("'volumes' não é um mapping")
+        .to_owned(); // agora é Mapping, iterável
+
     let session = get_session(ssh_config)?;
 
     for (volume_name, volume_value) in group_config {
         let volume_name: String = from_value(volume_name).unwrap();
 
-        // Pode ter opções como driver, driver_opts etc.
         let mut cmd = format!("docker volume create {}", volume_name);
 
         if let Some(volume_map) = volume_value.as_mapping() {
-            // driver
             if let Some(driver) = volume_map.get(
                 &Value::String("driver".to_string())
             ) {
@@ -46,7 +51,10 @@ pub fn handle_volumes(
         }
 
         println!("\n{}", cmd);
-        docker_run(&session, cmd, ssh_config)?;
+
+        if !dry_run {
+            docker_run(&session, cmd)?;
+        }
     }
 
     Ok(())
