@@ -47,14 +47,14 @@ pub fn handle_group(
             &deployed_services
         )?;
     
-        for image_name in ready_for_this_wave.iter() {
+        for image_name in ready_for_this_wave {
             let service_config = services_to_deploy
-                .get(image_name)
+                .get(&image_name)
                 .unwrap()
                 .clone();
 
             let tar_file: String = format!(
-                "{}.tar", image_name.replace("/", "_").replace(":", "_")
+                "{}.tar", &image_name.replace("/", "_").replace(":", "_")
             );
 
             println!("----------------- DEPLOY DE SERVICE: {image_name} -----------------");
@@ -120,14 +120,22 @@ fn resolve_this_wave(
 
     let mut ready_for_this_wave: Vec<String> = Vec::new();
     for (image_name, service_config) in services_to_deploy.iter() {
+        let mut image_name = image_name
+            .as_str()
+            .expect("Nenhuma image econtrada")
+            .to_owned();
+
         let service: ServiceConfig = from_value(service_config.clone())?;
+        if let Some(image) =  service.image {
+            image_name = image;
+        }
         let dependencies = service.depends_on.clone().unwrap_or_default();
         let all_deps_ready = if dependencies.is_empty() { true } else {
             dependencies.iter().all(|dep| deployed_services.contains(dep))
         };
         if all_deps_ready {
             ready_for_this_wave
-            .push(image_name.as_str().unwrap().to_owned());
+            .push(image_name);
         }
     }
     if ready_for_this_wave.is_empty() {

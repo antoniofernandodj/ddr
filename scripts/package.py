@@ -1,24 +1,9 @@
 #!/usr/bin/env python3
 import os
 import shutil
-import subprocess
 import sys
 import xml.etree.ElementTree as ET
-
-
-def strip_lines(text: str) -> str:
-    """Remove indentação extra e espaços das linhas"""
-    lines = [line.lstrip() for line in text.strip().splitlines()]
-    return "\n".join(lines).strip()
-
-def find_by_id(elem: ET.Element, id_value: str) -> ET.Element:
-    """Percorre recursivamente todos os elementos para encontrar atributo id"""
-    if elem.attrib.get("id") == id_value:
-        return elem
-    for child in elem.iter():
-        if child.attrib.get("id") == id_value:
-            return child
-    raise LookupError(f"Elemento não encontrado: {id_value}")
+from typing import Callable, Dict
 
 if len(sys.argv) < 4:
     print("Uso: package.py <nome> <versão> <arquitetura>")
@@ -26,52 +11,74 @@ if len(sys.argv) < 4:
 
 BUILD_DIR = "build"
 NAME, VERSION, ARCH = sys.argv[1:4]
-DEB_DIR_NAME = f"{NAME}_{VERSION}_{ARCH}"
+DEB_DIR = f"{NAME}_{VERSION}_{ARCH}"
 
-# Lê o manifest XML
-with open("scripts/manifest.xml") as f:
-    xml_content = f.read()
+context = {
+    "name": NAME,
+    "version": VERSION,
+    "arch": ARCH,
+    "DEB_DIR": DEB_DIR
+}
 
-root = ET.fromstring(
-    xml_content.format(
-        DEB_DIR=DEB_DIR_NAME,
-        name=NAME,
-        version=VERSION,
-        arch=ARCH
-    )
-)
+def strip_lines(text: str) -> str:
+    """Remove indentação extra e espaços das linhas"""
+    lines = [line.lstrip() for line in text.strip().splitlines()]
+    return "\n".join(lines).strip()
 
-deb_dir_elem = root
-deb_dir = os.path.join(BUILD_DIR, DEB_DIR_NAME)
-if os.path.exists(deb_dir):
-    shutil.rmtree(deb_dir)
+def create_dir(path, element, _):
+    os.makedirs(path, exist_ok=True)
+    for child in element:
+        create_structure(child, path)
 
-print(f"==> Criando estrutura {deb_dir}")
-os.makedirs(deb_dir, exist_ok=True)
+def remove_all(path):
+    # Diretório raiz de build
+    if os.path.exists(path):
+        shutil.rmtree(path)
 
-# --- DEBIAN: control, postinst, prerm ---
-for name in ["control", "postinst", "prerm"]:
-    text = deb_dir_elem.findtext(f"DEBIAN/{name}")
-    if text is None:
-        continue
-    debian_dir = os.path.join(deb_dir, "DEBIAN")
-    os.makedirs(debian_dir, exist_ok=True)
-    file_path = os.path.join(debian_dir, name)
-    with open(file_path, "w") as f:
-        f.write(strip_lines(text) + "\n")
+def create_file(path, element, name=None):
+    content = ""
+    src = element.attrib.get("src")
+    if src:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copy(src, path)
+        return
+
+    if element.text:
+        content = strip_lines(element.text)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, "w") as f:
+        f.write(content + "\n")
+
     if name in ("postinst", "prerm"):
-        os.chmod(file_path, 0o755)
+        os.chmod(path, 0o755)
 
-# --- Binário ---
-bin_elem = find_by_id(deb_dir_elem, "binary")
-bin_dir = os.path.join(deb_dir, "usr/local/bin")
-os.makedirs(bin_dir, exist_ok=True)
-shutil.copy(bin_elem.attrib["src"].strip(), bin_dir)
+funcs: Dict[str, Callable] = {
+    'dir': create_dir,
+    'file': create_file
+}
 
-# --- Empacotar com dpkg-deb ---
-deb_file = f"{deb_dir}.deb"
-print(f"==> Gerando pacote {deb_file}")
-subprocess.check_call(["dpkg-deb", "--build", deb_dir])
-shutil.move(f"{deb_dir}.deb", f"{DEB_DIR_NAME}.deb")
+def create_structure(element: ET.Element, base_path: str):
+    """
+    Cria pastas e arquivos a partir do XML.
+    - Usa 'name' se existir, senão usa tag.
+    - type="dir" cria diretório
+    - type="file" cria arquivo com CDATA ou src
+    """
+    # Nome do arquivo/pasta
+    func = funcs[element.attrib.get("type", "dir")]
+    name = element.attrib.get("name", element.tag)
+    func(os.path.join(base_path, name), element, name)
 
-print(f"==> Pacote criado: {deb_file}")
+def main():
+    remove_all(os.path.join(BUILD_DIR, NAME))
+
+    with open("scripts/manifest.xml") as f:
+        xml_content = f.read()
+
+    root = ET.fromstring(xml_content.format(**context))
+    create_structure(root, BUILD_DIR)
+    print(f"Estrutura criada em {BUILD_DIR}/{context['name']}")
+
+if __name__ == "__main__":
+    main()

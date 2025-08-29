@@ -21,14 +21,13 @@ fn main() -> anyhow::Result<()> {
 
     let ssh_config = utils::get_ssh_config()?;
 
-    // Lê o deploy.yaml
-    let deploy_yaml = process_deployment_file("deploy.yaml")?;
-    let deploy_map = deploy_yaml.as_mapping().unwrap();
-
 
     match cli.command {
 
-        Commands::Deploy { group_name, dry_run} => {
+        Commands::Deploy { group_name, dry_run, config} => {
+
+            let deploy_yaml = process_deployment_file(&config)?;
+            let deploy_map = deploy_yaml.as_mapping().unwrap();
 
             if let Some(_) = deploy_map.get(Value::String(group_name.clone())) {
 

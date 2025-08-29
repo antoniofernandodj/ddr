@@ -41,6 +41,7 @@ pub struct ContainerConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct ServiceConfig {
+    pub image: Option<String>,
     pub network_mode: Option<String>,
     pub restart: Option<String>,
     pub env_file: Option<Vec<String>>,
@@ -70,8 +71,12 @@ pub struct InfraConfig {
 
 
 #[derive(Parser)]
-#[command(name = "ddr")]
-#[command(about = "CLI para gerar comandos Docker a partir do deploy.yaml", long_about = None)]
+#[command(
+    name = "ddr",
+    about = "CLI para gerar comandos Docker a partir de um arquivo de \
+            configuração (default: deploy.yaml)",
+    long_about = None
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -79,13 +84,22 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    #[command(
+        about = "Executa o processo de deploy para um grupo",
+        long_about = "Este subcomando permite rodar o processo de deploy \
+                      para um grupo específico definido no arquivo de configuração. \
+                      Pode simular a execução sem aplicar mudanças (dry-run)."
+    )]
     Deploy {
-        #[arg(value_enum)]
-        #[clap(long)]
+        /// Seleciona o grupo a ser processado
+        #[arg(short, long)]
         group_name: String,
         /// Simula a execução sem aplicar mudanças
-        #[clap(long)]
+        #[arg(short, long)]
         dry_run: bool,
+        /// Define o arquivo de configuração a ser usado
+        #[arg(short, long, default_value = "deploy.yaml")]
+        config: String,
     },
 }
 

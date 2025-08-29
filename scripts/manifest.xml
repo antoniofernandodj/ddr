@@ -1,6 +1,6 @@
 <{DEB_DIR}>
     <DEBIAN>
-        <control>
+        <control type="file">
             <![CDATA[
                 Package: {name}
                 Version: {version}
@@ -11,7 +11,7 @@
                 Description: Pacote Rust gerado via Python
             ]]>
         </control>
-        <postinst>
+        <postinst type="file">
             <![CDATA[
                 #!/bin/bash
                 set -e
@@ -19,7 +19,7 @@
                 chmod +x /usr/local/bin/{name}
             ]]>
         </postinst>
-        <prerm>
+        <prerm type="file">
             <![CDATA[
                 #!/bin/bash
                 set -e
@@ -29,10 +29,10 @@
     </DEBIAN>
     <usr>
         <local>
-            <bin id="binary" src="target/release/ddr"/>
+            <bin name="ddr" type="file" id="binary" src="target/release/ddr"/>
             <share>
-                <doc>{name}</doc>
-                <man>{name}.1</man>
+                <doc type="file">{name}</doc>
+                <man type="file">{name}.1</man>
             </share>
         </local>
     </usr>
