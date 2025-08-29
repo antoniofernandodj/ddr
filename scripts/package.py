@@ -21,7 +21,6 @@ context = {
 }
 
 def strip_lines(text: str) -> str:
-    """Remove indentação extra e espaços das linhas"""
     lines = [line.lstrip() for line in text.strip().splitlines()]
     return "\n".join(lines).strip()
 
