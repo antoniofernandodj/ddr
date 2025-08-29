@@ -31,7 +31,6 @@ def create_dir(path, element, _):
         create_structure(child, path)
 
 def remove_all(path):
-    # Diretório raiz de build
     if os.path.exists(path):
         shutil.rmtree(path)
 
