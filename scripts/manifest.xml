@@ -1,6 +1,8 @@
-<{DEB_DIR}>
-    <DEBIAN>
-        <control type="file">
+<dir name="__DEB_DIR__">
+
+    <!-- Metadados do pacote -->
+    <dir name="DEBIAN">
+        <file name="control">
             <![CDATA[
                 Package: {name}
                 Version: {version}
@@ -10,30 +12,91 @@
                 Maintainer: Você <voce@email>
                 Description: Pacote Rust gerado via Python
             ]]>
-        </control>
-        <postinst type="file">
+        </file>
+        <file name="postinst" chmod="755">
             <![CDATA[
                 #!/bin/bash
                 set -e
                 echo "Configurando {name}..."
                 chmod +x /usr/local/bin/{name}
             ]]>
-        </postinst>
-        <prerm type="file">
+        </file>
+        <file name="prerm" chmod="755">
             <![CDATA[
                 #!/bin/bash
                 set -e
                 echo "Removendo {name}..."
             ]]>
-        </prerm>
-    </DEBIAN>
-    <usr>
-        <local>
-            <bin name="ddr" type="file" id="binary" src="target/release/ddr"/>
-            <share>
-                <doc type="file">{name}</doc>
-                <man type="file">{name}.1</man>
-            </share>
-        </local>
-    </usr>
-</{DEB_DIR}>
+        </file>
+        <file name="postrm" chmod="755">
+            <![CDATA[
+                #!/bin/bash
+                set -e
+                echo "{name} removido."
+            ]]>
+        </file>
+        <file name="preinst" chmod="755">
+            <![CDATA[
+                #!/bin/bash
+                set -e
+                echo "Preparando instalação de {name}..."
+            ]]>
+        </file>
+    </dir>
+
+    <!-- Binários e arquivos de usuário -->
+    <dir name="usr">
+        <dir name="local">
+            <file name="{name}" src="target/release/{name}" chmod="755" />
+            <dir name="share">
+                <dir name="{name}">
+                    <file name="README.md" src="README.md" />
+                    <file name="LICENSE" src="LICENSE" />
+                    <dir name="doc">
+                        <file name="manual.txt">{name} manual placeholder</file>
+                    </dir>
+                    <dir name="man">
+                        <file name="{name}.1" src="docs/{name}.1" />
+                    </dir>
+                </dir>
+            </dir>
+        </dir>
+    </dir>
+
+    <!-- Configurações adicionais -->
+    <dir name="etc">
+        <dir name="{name}">
+            <file name="{name}.conf">
+                <![CDATA[
+                    # Configuração inicial do pacote {name}
+                    setting1=value1
+                    setting2=value2
+                ]]>
+            </file>
+        </dir>
+    </dir>
+
+    <!-- Logs e variáveis -->
+    <dir name="var">
+        <dir name="log">
+            <dir name="{name}" />
+        </dir>
+        <dir name="lib">
+            <dir name="{name}" />
+        </dir>
+    </dir>
+
+    <!-- Exemplos ou templates -->
+    <dir name="usr">
+        <dir name="share">
+            <dir name="examples">
+                <file name="{name}_example.txt">
+                    <![CDATA[
+                        Exemplo de uso do pacote {name}
+                    ]]>
+                </file>
+            </dir>
+        </dir>
+    </dir>
+
+</dir>
