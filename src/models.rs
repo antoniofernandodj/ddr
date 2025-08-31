@@ -1,18 +1,12 @@
-use serde::Deserialize;
-use serde_yaml::{Mapping};
 use clap::{Parser, Subcommand};
-
-
-
-
+use serde::Deserialize;
+use serde_yaml::Mapping;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct RemoteHealthCheck {
     pub port: Option<i32>,
-    pub endpoint: Option<String>
+    pub endpoint: Option<String>,
 }
-
-
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct HealthCheck {
@@ -22,22 +16,18 @@ pub struct HealthCheck {
     pub retries: i32,
 }
 
-
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct ContainerConfig {
-
     pub network_mode: Option<String>,
     pub restart: Option<String>,
     pub env_file: Option<Vec<String>>,
     pub volumes: Option<Vec<String>>,
-    
+
     pub environment: Option<Vec<String>>,
     pub command: Option<String>,
     pub remotecheck: Option<RemoteHealthCheck>,
     pub healthcheck: Option<HealthCheck>,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct ServiceConfig {
@@ -51,8 +41,6 @@ pub struct ServiceConfig {
     pub instances: Mapping,
     pub remotecheck: Option<RemoteHealthCheck>,
 }
-
-
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
@@ -69,7 +57,6 @@ pub struct InfraConfig {
     pub instances: Mapping, // Algumas infra pode ter instâncias
 }
 
-
 #[derive(Parser)]
 #[command(
     name = "ddr",
@@ -80,6 +67,18 @@ pub struct InfraConfig {
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+    /// Simula a execução sem aplicar mudanças
+    #[arg(short, long)]
+    pub dry_run: bool,
+    /// Define o arquivo de configuração a ser usado
+    #[arg(short, long, default_value = "deploy.yaml")]
+    pub config: String,
+    /// Define uma lista de variáveis de ambiente a ser usadas
+    #[arg(short, long)]
+    pub envs: Option<Vec<String>>,
+    /// Define o arquivo de configuração de variáveis de ambiente a ser usado
+    #[arg(short, long, default_value = "infra.secrets.env")]
+    pub env_config: String,
 }
 
 #[derive(Subcommand)]
@@ -94,21 +93,14 @@ pub enum Commands {
         /// Seleciona o grupo a ser processado
         #[arg(short, long)]
         group_name: String,
-        /// Simula a execução sem aplicar mudanças
-        #[arg(short, long)]
-        dry_run: bool,
-        /// Define o arquivo de configuração a ser usado
-        #[arg(short, long, default_value = "deploy.yaml")]
-        config: String,
     },
 }
-
 
 pub struct SSHConfig {
     pub user: String,
     pub host: String,
     pub password: String,
-    pub from_dir: String
+    pub from_dir: String,
 }
 
 impl SSHConfig {
@@ -117,8 +109,7 @@ impl SSHConfig {
             user: user,
             host: host,
             password: password,
-            from_dir: from_dir
+            from_dir: from_dir,
         }
     }
 }
-

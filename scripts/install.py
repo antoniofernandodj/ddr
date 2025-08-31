@@ -10,3 +10,7 @@ name, version, arch = sys.argv[1:4]
 deb_file = f"{name}_{version}_{arch}.deb"
 print(f"==> Instalando {deb_file}...")
 subprocess.check_call(["sudo", "dpkg", "-i", deb_file])
+
+subprocess.check_call(['sudo', 'mandb'])
+
+subprocess.check_call(['sudo', 'chmod', '644', f'/usr/share/man/man1/{name}.1.gz'])

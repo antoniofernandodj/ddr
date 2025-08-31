@@ -13,5 +13,8 @@ package: build
 install: $(DEB_FILE)
 	python3 scripts/install.py $(PACKAGE_NAME) $(VERSION) $(ARCH)
 
+uninstall:
+	python3 scripts/uninstall.py $(PACKAGE_NAME) $(VERSION) $(ARCH)
+
 clean:
 	python3 scripts/clean.py

@@ -1,0 +1,70 @@
+.\" Manpage for ddr
+.TH DDR 1 "Agosto 2025" "ddr 0.1.0" "User Commands"
+.SH NAME
+ddr \- CLI para gerar comandos Docker a partir de um arquivo de configuração
+.SH SYNOPSIS
+.B ddr
+.RI [ COMMAND ] " [OPTIONS]"
+.SH DESCRIPTION
+O
+.B ddr
+é uma ferramenta de linha de comando que gera e executa comandos Docker
+com base em um arquivo de configuração (por padrão, \fIdeploy.yaml\fR).
+
+Ele permite automatizar processos de deploy de grupos de serviços, incluindo
+a opção de rodar em modo de simulação (\fIdry-run\fR).
+
+.SH COMMANDS
+.TP
+.B deploy
+Executa o processo de deploy para um grupo definido no arquivo de configuração.
+Pode simular a execução sem aplicar mudanças.
+
+.TP
+.B help
+Mostra a ajuda geral ou a ajuda para um subcomando específico.
+
+.SH OPTIONS
+As opções variam de acordo com o comando:
+
+.SS Opções do comando \fBdeploy\fR
+.TP
+.BR -g ", " --group-name " " \fIGROUP_NAME\fR
+Seleciona o grupo a ser processado.
+
+.TP
+.BR -d ", " --dry-run
+Simula a execução sem aplicar mudanças.
+
+.TP
+.BR -c ", " --config " " \fICONFIG\fR
+Define o arquivo de configuração a ser usado (padrão: \fIdeploy.yaml\fR).
+
+.TP
+.BR -h ", " --help
+Mostra a ajuda do comando.
+
+.SH EXAMPLES
+.TP
+ddr help
+Mostra ajuda geral.
+
+.TP
+ddr deploy -g backend
+Executa o deploy do grupo \fIbackend\fR usando \fIdeploy.yaml\fR.
+
+.TP
+ddr deploy -g frontend -c custom.yaml --dry-run
+Simula o deploy do grupo \fIfrontend\fR usando o arquivo \fIcustom.yaml\fR.
+
+.SH FILES
+.TP
+.I deploy.yaml
+Arquivo de configuração padrão lido pelo ddr.
+
+.SH AUTHOR
+Antonio <seu_email@example.com>
+
+.SH SEE ALSO
+.BR docker (1),
+.BR docker-compose (1)

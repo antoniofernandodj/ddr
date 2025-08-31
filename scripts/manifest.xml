@@ -18,7 +18,6 @@
                 #!/bin/bash
                 set -e
                 echo "Configurando {name}..."
-                chmod +x /usr/local/bin/{name}
             ]]>
         </file>
         <file name="prerm" chmod="755">
@@ -47,17 +46,27 @@
     <!-- Binários e arquivos de usuário -->
     <dir name="usr">
         <dir name="local">
-            <file name="{name}" src="target/release/{name}" chmod="755" />
-            <dir name="share">
-                <dir name="{name}">
-                    <file name="README.md" src="README.md" />
-                    <file name="LICENSE" src="LICENSE" />
-                    <dir name="doc">
-                        <file name="manual.txt">{name} manual placeholder</file>
-                    </dir>
-                    <dir name="man">
-                        <file name="{name}.1" src="docs/{name}.1" />
-                    </dir>
+            <dir name="bin">
+                <file name="{name}" src="target/release/{name}" chmod="755" />
+            </dir>
+        </dir>
+        <dir name="share">
+            <dir name="{name}">
+                <file name="README.md" src="README.md" />
+                <file name="LICENSE" src="LICENSE" />
+                <dir name="doc">
+                    <file name="manual.txt">{name} manual placeholder</file>
+                </dir>
+            </dir>
+            <dir name="man">
+                <dir name="man1" type="dir">
+                    <file
+                        name="{name}.1.gz"
+                        type="file"
+                        src-before="docs/{name}.1"
+                        src-after="docs/{name}.1.gz"
+                        compress="gzip"
+                    />
                 </dir>
             </dir>
         </dir>
@@ -90,11 +99,9 @@
     <dir name="usr">
         <dir name="share">
             <dir name="examples">
-                <file name="{name}_example.txt">
-                    <![CDATA[
-                        Exemplo de uso do pacote {name}
-                    ]]>
-                </file>
+                <file
+                    name="{name}_example.txt"
+                ><![CDATA[Exemplo de uso do pacote {name}]]></file>
             </dir>
         </dir>
     </dir>
