@@ -13,66 +13,46 @@ services:
     network_mode: host
     restart: "on-failure"
     env_file:
-    - ./infra.secrets.env
+      - ./infra.secrets.env
     depends_on:
-    - "itemizebi/sidecar:${flow_version}"
-    - "itemizebi/overhead:${flow_version}"
-    - "itemizebi/scheduler:${flow_version}"
-    - "itemizebi/worker:${flow_version}"
+      - "itemizebi/sidecar:${flow_version}"
+      - "itemizebi/overhead:${flow_version}"
+      - "itemizebi/scheduler:${flow_version}"
+      - "itemizebi/worker:${flow_version}"
     environment:
-    - FLOW_LOGGER_NAME=WEB
-    - PYTHONUNBUFFERED=1
-    - PYTHONBREAKPOINT=0
-    - TERM=xterm-256color
-    check:
+      - FLOW_LOGGER_NAME=WEB
+      - PYTHONUNBUFFERED=1
+      - PYTHONBREAKPOINT=0
+      - TERM=xterm-256color
+    remotecheck:
       endpoint: /ok
     instances:
       api1:
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:8001/ok"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
         environment:
-        - APP_PORT=8001
+          - APP_PORT=8001
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8001 --log-level info --timeout-keep-alive 3600 app_asgi:app"
-        check:
+        remotecheck:
           port: 8001
 
       api2:
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:8002/ok"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
         environment:
-        - APP_PORT=8002
+          - APP_PORT=8002
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8002 --log-level info --timeout-keep-alive 3600 app_asgi:app"
-        check:
+        remotecheck:
           port: 8002
 
       api3:
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:8003/ok"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
         environment:
-        - APP_PORT=8003
+          - APP_PORT=8003
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8003 --log-level info --timeout-keep-alive 3600 app_asgi:app"
-        check:
+        remotecheck:
           port: 8003
 
       api4:
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:8004/ok"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
         environment:
-        - APP_PORT=8004
+          - APP_PORT=8004
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8004 --log-level info --timeout-keep-alive 3600 app_asgi:app"
-        check:
+        remotecheck:
           port: 8004
 
   sidecar:
@@ -82,45 +62,45 @@ services:
         network_mode: host
         restart: "on-failure"
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         volumes:
-        - ./src:/home/itemize/flow/src
+          - ./src:/home/itemize/flow/src
         environment:
-        - APP_PORT=8020
-        - FLOW_LOGGER_NAME=WEB
-        - PYTHONUNBUFFERED=1
-        - PYTHONBREAKPOINT=0
-        - TERM=xterm-256color
+          - APP_PORT=8020
+          - FLOW_LOGGER_NAME=WEB
+          - PYTHONUNBUFFERED=1
+          - PYTHONBREAKPOINT=0
+          - TERM=xterm-256color
         command: bash -c "uvicorn --loop uvloop --host 0.0.0.0 --port 8020 --log-level info --timeout-keep-alive 3600 app_sidecar:app"
 
   scheduler:
     image: "itemizebi/scheduler:${flow_version}"
     depends_on:
-    - "itemizebi/worker:${flow_version}"
-    - "itemizebi/sidecar:${flow_version}"
+      - "itemizebi/worker:${flow_version}"
+      - "itemizebi/sidecar:${flow_version}"
     instances:
       scheduler:
         network_mode: host
         restart: "on-failure"
         volumes:
-        - ./src:/home/itemize/flow/src
+          - ./src:/home/itemize/flow/src
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         environment:
-        - FLOW_LOGGER_NAME=SCHEDULER
+          - FLOW_LOGGER_NAME=SCHEDULER
 
   worker:
     image: "itemizebi/worker:${flow_version}"
     depends_on:
-    - "itemizebi/sidecar:${flow_version}"
+      - "itemizebi/sidecar:${flow_version}"
     instances:
       worker:
         network_mode: host
         restart: "always"
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         environment:
-        - FLOW_LOGGER_NAME=ORCAMENTO_WORKER
+          - FLOW_LOGGER_NAME=ORCAMENTO_WORKER
         command: python app_worker.py
 
   overhead:
@@ -138,12 +118,12 @@ infra:
       mysql:
         restart: unless-stopped
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         network_mode: host
         volumes:
-        - ./sqls/mysql-init:/docker-entrypoint-initdb.d
-        - mysql_data:/var/lib/mysql
-        - ./backup.prod.sql:/backup.prod.sql
+          - ./sqls/mysql-init:/docker-entrypoint-initdb.d
+          - mysql_data:/var/lib/mysql
+          - ./backup.prod.sql:/backup.prod.sql
 
         healthcheck:
           test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -159,9 +139,9 @@ infra:
         restart: always
         mem_limit: 256m
         volumes:
-        - cache:/data
+          - cache:/data
         environment:
-        - REDIS_MAXMEMORY=256m
+          - REDIS_MAXMEMORY=256m
 
   broker:
     image: "rabbitmq:${rabbitmq_version}"
@@ -169,9 +149,9 @@ infra:
       broker: # ports 15672, 5672, 25672
         network_mode: host
         volumes:
-        - /docker_conf/rabbitmq/data/:/var/lib/rabbitmq/
+          - /docker_conf/rabbitmq/data/:/var/lib/rabbitmq/
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         restart: always
 
   mongo:
@@ -180,10 +160,10 @@ infra:
       mongodb:
         network_mode: host
         env_file:
-        - ./infra.secrets.env
+          - ./infra.secrets.env
         volumes:
-        - mongodb-data:/data/db   # Persistência dos dados
-        - mongodb-logs:/var/log/mongodb   # Persistência dos logs (opcional)
+          - mongodb-data:/data/db # Persistência dos dados
+          - mongodb-logs:/var/log/mongodb # Persistência dos logs (opcional)
 
   prometheus:
     image: "prom/prometheus"
@@ -194,8 +174,8 @@ infra:
         network_mode: host
         restart: unless-stopped
         volumes:
-        - ./conf/prometheus.yml:/etc/prometheus/prometheus.yml
-        - prometheus-data:/prometheus
+          - ./conf/prometheus.yml:/etc/prometheus/prometheus.yml
+          - prometheus-data:/prometheus
 
   loki:
     image: "grafana/loki:${loki_version}"
@@ -203,26 +183,26 @@ infra:
       loki:
         restart: unless-stopped
         ports:
-        - "3111:3111"
+          - "3111:3111"
         volumes:
-        - ./conf/loki.yaml:/etc/loki/loki.yaml
-        - loki-data:/var/loki
+          - ./conf/loki.yaml:/etc/loki/loki.yaml
+          - loki-data:/var/loki
         environment:
-        - LOKI_CONFIG_FILE=/etc/loki/loki.yaml
+          - LOKI_CONFIG_FILE=/etc/loki/loki.yaml
         command: -config.file=/etc/loki/loki.yaml
 
   grafana:
     image: "grafana/grafana:${grafana_version}"
     instances:
       ports:
-      - "3000:3000"
+        - "3000:3000"
       environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+        - GF_SECURITY_ADMIN_PASSWORD=admin
       depends_on:
-      - loki
+        - loki
       restart: unless-stopped
       volumes:
-      - grafana-data:/var/lib/grafana
+        - grafana-data:/var/lib/grafana
 
 volumes:
   mysql_data:
